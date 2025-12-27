@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  startDate   DateTime @default(now()) // Storing local start date for easier recurrence calculation? No, keep it simple.
+  // Actually, for RRule we just need the start time.
+  recurrenceRule String? // RRule string e.g. "FREQ=WEEKLY;INTERVAL=1"
+  excludeDates   String? // JSON string or comma separated ISO dates to exclude
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  calendarId  String
+  calendar    Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  reminders   Reminder[]
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  name      String?
+  calendars Calendar[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Calendar {
+  id        String   @id @default(uuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events    Event[]
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reminder {
+  id            String   @id @default(uuid())
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  minutesBefore Int
+  method        String   @default("POPUP")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Calendar Management System
 
-## Getting Started
+A full-featured calendar web application built with Next.js 15, TypeScript, Prisma, and Tailwind CSS.
+Supports user accounts, multiple calendars, recurring events, and browser notifications.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 📅 Calendar Views
+- **Weekly View**: Interactive grid layout showing the current week.
+- **Current Time Indicator**: A dynamic red line showing the exact current time.
+- **Navigation**: Easily switch between weeks.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### ✨ Event Management
+- **Create Events**: Click any time slot to create an event with title, description, and time.
+- **Edit & Delete**: Click an event to modify its details or delete it.
+- **Drag & Drop**: Move events to different times or days simply by dragging them.
+- **Conflict Detection**: Prevents creating overlapping events (in strict mode).
+- **Recurring Events**: Support for Daily, Weekly, and Monthly repeated events.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 👤 User Accounts & Security
+- **Authentication**: Secure Signup and Login (Email/Password) powered by NextAuth.js.
+- **Session Management**: Protected routes and API endpoints.
+- **Data Privacy**: Users can only see and manage their own calendars and events.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 📂 Multiple Calendars
+- **Custom Calendars**: Create separate calendars (e.g., "Work", "Personal").
+- **Visibility Toggles**: Show/hide events by toggling calendars in the sidebar.
+- **Delete Protection**: Custom confirmation popup when deleting a calendar to prevent accidental data loss.
+- **Color Coding**: Events are automatically color-coded for visual distinction.
 
-## Learn More
+### 🔔 Reminders & Notifications
+- **Browser Notifications**: Get system alerts for upcoming events.
+- **Customizable Timing**: Set reminders for 10m, 30m, 1h, or 1 day before the event.
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS (with Glassmorphism UI)
+- **Database**: SQLite
+- **ORM**: Prisma
+- **Auth**: NextAuth.js
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Setup & Run
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+2. **Initialize Database**
+   ```bash
+   npx prisma db push
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Run Development Server**
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Access the App**
+   Open [http://localhost:3000](http://localhost:3000)
+
+## API Reference
+
+### Events
+- `GET /api/events?start=...&end=...`: Fetch events range.
+- `POST /api/events`: Create new event.
+- `PUT /api/events/[id]`: Update event.
+- `DELETE /api/events/[id]`: Delete event.
+
+### Calendars
+- `GET /api/calendars`: List all user calendars.
+- `POST /api/calendars`: Create a new calendar.
+- `DELETE /api/calendars/[id]`: Delete a calendar.
+
+## Usage Tips
+- **Authentication**: You can use demo account to login with email: demo@gmail.com and password: demo@1234.
+- **Drag & Drop**: You cannot drag recurring events (instances are locked to the rule). Edit the series instead.
+- **Reminders**: You must allow browser notifications when prompted for the feature to work.
+
+## Known Limitations
+- **Strict Conflict Detection**: Overlapping events are currently blocked. Future versions could allow overlaps with visual stacking.
+- **Recurring Event Dragging**: You cannot drag individual instances of a recurring series. You must edit the series via the modal.
+- **Mobile View**: The complex weekly grid is optimized for desktop and may be difficult to use on small mobile screens.
+- **Email Notifications**: Notifications are currently browser-only (popups). Email integration requires an external SMTP service.
+
+## Future Improvements
+- **Event Sharing**: Allow users to share calendars with specific people (Read/Write permissions).
+- **Advanced Recurrence**: Support for complex rules like "Last Friday of the month" and handling exceptions (removing one instance from a series).
+- **Search Functionality**: A search bar to quickly find events by title or description.
+- **External Sync**: Import/Export with Google Calendar or Outlook (.ics support).
+- **Drag & Drop Logic**: Enhanced logic to split recurring series on drop (e.g., "Edit this event only" vs "Edit all future events").
