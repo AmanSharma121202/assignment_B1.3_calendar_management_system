@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, startOfDay, addHours, differenceInMinutes
 import { useSession, signOut } from 'next-auth/react';
 import EventModal from './EventModal';
 import CalendarSidebar, { Calendar } from './CalendarSidebar';
-import NotificationManager from './NotificationManager';
+
 
 type CalendarEvent = {
   id: string;
@@ -45,17 +45,25 @@ const getStringColor = (str: string) => {
 
 export default function WeekView() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Local state for year input to allow typing
+  const [yearInput, setYearInput] = useState(currentDate.getFullYear().toString());
+
+  useEffect(() => {
+    setYearInput(currentDate.getFullYear().toString());
+  }, [currentDate]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [selectedStart, setSelectedStart] = useState<Date | undefined>();
   const [selectedEnd, setSelectedEnd] = useState<Date | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const { data: session } = useSession();
 
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start
+  const startDate = React.useMemo(() => startOfWeek(currentDate, { weekStartsOn: 0 }), [currentDate]); // Sunday start
 
   // Set current time on mount and update every minute
   useEffect(() => {
@@ -72,13 +80,16 @@ export default function WeekView() {
         if (res.ok) {
             const data = await res.json();
             setCalendars(data);
-            // Default select all if no selection (first load)
-            setSelectedCalendarIds(prev => prev.length === 0 ? data.map((c: Calendar) => c.id) : prev);
+            // Default select first or default if no selection
+            if (!selectedCalendarId && data.length > 0) {
+                const defaultCal = data.find((c: Calendar) => c.isDefault) || data[0];
+                setSelectedCalendarId(defaultCal.id);
+            }
         }
     } catch (e) {
         console.error('Failed to fetch calendars');
     }
-  }, [session]);
+  }, [session, selectedCalendarId]);
 
   useEffect(() => {
     fetchCalendars();
@@ -99,6 +110,21 @@ export default function WeekView() {
       }
   };
 
+  const handleUpdateCalendar = async (id: string, name: string) => {
+      try {
+          const res = await fetch(`/api/calendars/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name })
+          });
+          if (res.ok) {
+              fetchCalendars();
+          }
+      } catch (e) {
+          console.error("Failed to update calendar");
+      }
+  };
+
   const [calendarToDelete, setCalendarToDelete] = useState<string | null>(null);
 
   const handleDeleteCalendarClick = (id: string) => {
@@ -111,7 +137,12 @@ export default function WeekView() {
           const res = await fetch(`/api/calendars/${calendarToDelete}`, { method: 'DELETE' });
           if (res.ok) {
               fetchCalendars();
+              fetchEvents();
               setCalendarToDelete(null);
+              // If deleted current selection, select another
+              if (selectedCalendarId === calendarToDelete) {
+                  setSelectedCalendarId(null); // fetchCalendars will pick new one
+              }
           } else {
               alert("Failed to delete (cannot delete default)");
           }
@@ -121,9 +152,7 @@ export default function WeekView() {
   };
 
   const handleToggleCalendar = (id: string) => {
-      setSelectedCalendarIds(prev => 
-        prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
-      );
+      setSelectedCalendarId(id);
   };
 
   // Fetch events when week changes
@@ -240,7 +269,7 @@ export default function WeekView() {
     <div className="flex flex-col h-screen bg-slate-50 font-sans">
       {/* Delete Calendar Confirmation Modal */}
       {calendarToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100 relative animate-in fade-in zoom-in duration-200">
                   <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,24 +319,78 @@ export default function WeekView() {
         calendars={calendars}
       />
       
-      {/* Notification System */}
-      <NotificationManager events={events} />
+      {/* Notification System Removed */}
+      {/* <NotificationManager events={events} /> */}
 
       {/* Header */}
-      <header className="flex items-center justify-between px-8 py-5 bg-white border-b border-slate-200 shadow-sm z-20">
-        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-          CalendarMate
-        </h1>
-        <div className="flex items-center space-x-6">
+      <header className="flex flex-col md:flex-row items-center justify-between px-4 md:px-8 py-3 md:py-5 bg-white border-b border-slate-200 shadow-sm z-30 gap-4 md:gap-0">
+        <div className="flex items-center w-full md:w-auto justify-between">
+            <div className="flex items-center gap-3">
+                {/* Mobile Menu Button */}
+                <button 
+                    className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md"
+                    onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                CalendarMate
+                </h1>
+            </div>
+            
+            {/* Mobile Profile Icon (Moved to top right on mobile for better UX) */}
+            <div className="md:hidden flex items-center">
+                 {session?.user && (
+                    <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold border border-indigo-200">
+                        {session.user.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                 )}
+            </div>
+        </div>
+        
+        <div className="flex items-center space-x-2 md:space-x-6 w-full md:w-auto justify-center md:justify-end">
           <button 
              className="px-5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-full hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
              onClick={() => setCurrentDate(addDays(currentDate, -7))}
           >
             ← Previous
           </button>
-          <span className="text-xl font-bold text-slate-800 w-56 text-center tracking-tight">
-            {format(currentDate, 'MMMM yyyy')}
-          </span>
+          
+          <div className="flex items-center gap-2">
+            <select 
+                value={currentDate.getMonth()}
+                onChange={(e) => {
+                    const newMonth = parseInt(e.target.value);
+                    const newDate = new Date(currentDate.getFullYear(), newMonth, 1);
+                    setCurrentDate(newDate);
+                }}
+                className="text-xl font-bold text-slate-800 bg-transparent border-none cursor-pointer focus:ring-2 focus:ring-indigo-500/20 rounded px-1 py-0.5 hover:bg-slate-50 transition-colors appearance-none"
+                style={{ WebkitAppearance: 'menulist' }} // Force arrow to show
+            >
+                {Array.from({ length: 12 }).map((_, i) => (
+                    <option key={i} value={i}>
+                        {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                    </option>
+                ))}
+            </select>
+            
+            <input 
+                type="number"
+                value={yearInput}
+                onChange={(e) => {
+                     setYearInput(e.target.value);
+                     const newYear = parseInt(e.target.value);
+                     if (!isNaN(newYear) && newYear > 1900 && newYear < 2100) {
+                         const newDate = new Date(newYear, currentDate.getMonth(), 1);
+                         setCurrentDate(newDate);
+                     }
+                }}
+                className="text-xl font-bold text-slate-800 bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 rounded px-1 py-0.5 w-24 hover:bg-slate-50 transition-colors"
+            />
+          </div>
+
           <button 
              className="px-5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-full hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
              onClick={() => setCurrentDate(addDays(currentDate, 7))}
@@ -316,8 +399,8 @@ export default function WeekView() {
           </button>
         </div>
         
-        {/* User Profile */}
-        <div className="flex items-center gap-4">
+        {/* User Profile (Desktop) */}
+        <div className="hidden md:flex items-center gap-4">
             {session?.user && (
                 <div className="flex items-center gap-3">
                     <div className="flex flex-col text-right">
@@ -342,125 +425,150 @@ export default function WeekView() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         {session?.user && (
-            <CalendarSidebar 
-                calendars={calendars}
-                selectedCalendarIds={selectedCalendarIds}
-                onToggleCalendar={handleToggleCalendar}
-                onCreateCalendar={handleCreateCalendar}
-                onDeleteCalendar={handleDeleteCalendarClick}
-            />
+            <>
+                {/* Mobile Overlay */}
+                {showMobileSidebar && (
+                    <div 
+                        className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                        onClick={() => setShowMobileSidebar(false)}
+                    />
+                )}
+                
+                {/* Sidebar Container */}
+                <div className={`
+                    fixed md:static inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+                    ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+                    md:translate-x-0 w-64 bg-white border-r border-slate-200 flex-shrink-0 h-full shadow-xl md:shadow-none
+                `}>
+                    <CalendarSidebar 
+                        calendars={calendars}
+                        selectedCalendarId={selectedCalendarId}
+                        onToggleCalendar={handleToggleCalendar}
+                        onCreateCalendar={handleCreateCalendar}
+                        onDeleteCalendar={handleDeleteCalendarClick}
+                        onUpdateCalendar={handleUpdateCalendar}
+                    />
+                </div>
+            </>
         )}
 
-        {/* Time Sidebar */}
-        <div className="flex flex-col w-20 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar flex-shrink-0 z-10">
-            <div className="h-16 border-b border-slate-200 flex-shrink-0 bg-slate-50"></div> {/* Header spacer */}
-            <div className="relative" style={{ height: '1440px' }}>
-                {hours.map((hour) => (
-                    <div key={hour} className="h-[60px] border-b border-transparent text-xs font-medium text-slate-400 text-center pt-2 relative">
-                        <span className="-mt-3 block bg-white px-1">{format(addHours(startOfDay(new Date()), hour), 'h a')}</span>
+        {/* Unified 2D Scroll Container */}
+        <div className="flex-1 overflow-auto bg-white relative" id="calendar-scroll-container">
+            <div className="flex min-w-[800px]"> {/* Ensure min width for horiz scroll */}
+                
+                {/* Time Sidebar (Sticky Left) */}
+                <div className="sticky left-0 z-40 bg-white border-r border-slate-200 flex-shrink-0 w-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+                    {/* Corner Spacer (Sticky Top) */}
+                    <div className="h-16 border-b border-slate-200 bg-slate-50 sticky top-0 z-50"></div>
+                    
+                    {/* Time Labels */}
+                    <div className="relative" style={{ height: '1440px' }}>
+                        {hours.map((hour) => (
+                            <div key={hour} className="h-[60px] border-b border-transparent text-xs font-medium text-slate-400 text-center pt-2 relative">
+                                <span className="-mt-2 block bg-white px-1 relative z-10">{format(addHours(startOfDay(new Date()), hour), 'h a')}</span>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
-        </div>
+                </div>
 
-        {/* Days Columns */}
-        <div className="flex flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white">
-            <div className="flex w-full min-w-[1000px]">
-                {weekDays.map((day) => {
-                    const isToday = isSameDay(day, new Date());
-                    return (
-                        <div key={day.toISOString()} className="flex-1 min-w-[140px] border-r border-slate-100 relative group">
-                            {/* Day Header */}
-                            <div className={`h-16 border-b border-slate-200 flex flex-col items-center justify-center sticky top-0 z-10 transition-colors ${isToday ? 'bg-indigo-50 border-b-indigo-200' : 'bg-slate-50'}`}>
-                                <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-indigo-600' : 'text-slate-500'}`}>
-                                    {format(day, 'EEE')}
-                                </span>
-                                <div className={`flex items-center justify-center w-8 h-8 rounded-full mt-1 ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-900'}`}>
-                                    <span className="text-lg font-bold">
-                                        {format(day, 'd')}
+                {/* Days Columns */}
+                <div className="flex flex-1">
+                    {weekDays.map((day) => {
+                        const isToday = isSameDay(day, new Date());
+                        return (
+                            <div key={day.toISOString()} className="flex-1 min-w-[140px] border-r border-slate-100 relative group">
+                                {/* Day Header (Sticky Top) */}
+                                <div className={`h-16 border-b border-slate-200 flex flex-col items-center justify-center sticky top-0 z-30 transition-colors ${isToday ? 'bg-indigo-50 border-b-indigo-200' : 'bg-slate-50'}`}>
+                                    <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? 'text-indigo-600' : 'text-slate-500'}`}>
+                                        {format(day, 'EEE')}
                                     </span>
+                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full mt-1 ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-900'}`}>
+                                        <span className="text-lg font-bold">
+                                            {format(day, 'd')}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Time Slots Container */}
+                                <div 
+                                    className="relative h-[1440px]" 
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                    }}
+                                >
+                                    {/* Horizontal grid lines */}
+                                    {hours.map((hour) => (
+                                        <div 
+                                            key={hour} 
+                                            className="h-[60px] border-b border-slate-100 hover:bg-indigo-50/30 cursor-pointer transition-colors duration-75 box-border"
+                                            onClick={() => handleSlotClick(day, hour)}
+                                            onDragOver={(e) => {
+                                                 e.preventDefault();
+                                                 e.dataTransfer.dropEffect = 'move';
+                                            }}
+                                            onDrop={(e) => handleEventDrop(e, day, hour)}
+                                        >
+                                        </div>
+                                    ))}
+                                    
+                                    {/* Vertical marker for current time */}
+                                    {isToday && now && (
+                                        <div 
+                                            className="absolute w-full border-t-2 border-red-500 z-20 pointer-events-none opacity-60"
+                                            style={{ top: `${((now.getHours() * 60 + now.getMinutes()) / 1440) * 100}%` }}
+                                        >
+                                            <div className="absolute -left-1 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
+                                        </div>
+                                    )}
+
+                                    {/* Events */}
+                                    {events
+                                        .filter(event => isSameDay(new Date(event.startTime), day))
+                                        .filter(event => selectedCalendarId ? event.calendarId === selectedCalendarId : false)
+                                        .map(event => {
+                                            const style = calculateEventPosition(event);
+                                            const colorClass = getStringColor(event.title);
+                                            const isRecurring = !!event.originalEventId;
+
+                                            return (
+                                                <div
+                                                    key={event.id}
+                                                    draggable={!isRecurring}
+                                                    onDragStart={(e) => {
+                                                        if (isRecurring) {
+                                                            e.preventDefault();
+                                                            alert("You cannot drag and drop recurring events.");
+                                                            return;
+                                                        }
+                                                        e.dataTransfer.setData('eventId', event.id);
+                                                        e.dataTransfer.effectAllowed = 'move';
+                                                    }}
+                                                    className={`absolute left-1 right-1 rounded-md border p-2 text-xs overflow-hidden shadow-sm hover:shadow-md transition-shadow z-10 ${colorClass} opacity-90 hover:opacity-100 ${isRecurring ? 'cursor-pointer' : 'cursor-move'}`}
+                                                    style={{
+                                                        top: style.top,
+                                                        height: style.height,
+                                                    }}
+                                                    onClick={(e) => handleEventClick(event, e)}
+                                                >
+                                                    <div className="font-bold truncate text-sm flex items-center gap-1">
+                                                        {isRecurring && <span>↻</span>}
+                                                        {event.title}
+                                                    </div>
+                                                    <div className="opacity-90">{format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}</div>
+                                                </div>
+                                            );
+                                        })
+                                    }
                                 </div>
                             </div>
-
-                            {/* Time Slots Container */}
-                            <div 
-                                className="relative h-[1440px]" 
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                    e.preventDefault();
-                                    // Handle drop on container (fallback if not on hour slot)
-                                }}
-                            >
-                                {/* Horizontal grid lines */}
-                                {hours.map((hour) => (
-                                    <div 
-                                        key={hour} 
-                                        className="h-[60px] border-b border-slate-100 hover:bg-indigo-50/30 cursor-pointer transition-colors duration-75 box-border"
-                                        onClick={() => handleSlotClick(day, hour)}
-                                        onDragOver={(e) => {
-                                             e.preventDefault();
-                                             e.dataTransfer.dropEffect = 'move';
-                                        }}
-                                        onDrop={(e) => handleEventDrop(e, day, hour)}
-                                    >
-                                    </div>
-                                ))}
-                                
-                                {/* Vertical marker for current time */}
-                                {isToday && now && (
-                                    <div 
-                                        className="absolute w-full border-t-2 border-red-500 z-20 pointer-events-none opacity-60"
-                                        style={{ top: `${((now.getHours() * 60 + now.getMinutes()) / 1440) * 100}%` }}
-                                    >
-                                        <div className="absolute -left-1 -top-1.5 w-3 h-3 bg-red-500 rounded-full"></div>
-                                    </div>
-                                )}
-
-                                {/* Events */}
-                                {events
-                                    .filter(event => isSameDay(new Date(event.startTime), day))
-                                    .filter(event => selectedCalendarIds.includes(event.calendarId))
-                                    .map(event => {
-                                        const style = calculateEventPosition(event);
-                                        const colorClass = getStringColor(event.title);
-                                        const isRecurring = !!event.originalEventId;
-
-                                        return (
-                                            <div
-                                                key={event.id}
-                                                draggable={!isRecurring}
-                                                onDragStart={(e) => {
-                                                    if (isRecurring) {
-                                                        e.preventDefault();
-                                                        alert("You cannot drag and drop recurring events.");
-                                                        return;
-                                                    }
-                                                    e.dataTransfer.setData('eventId', event.id);
-                                                    e.dataTransfer.effectAllowed = 'move';
-                                                }}
-                                                className={`absolute left-1 right-1 rounded-md border p-2 text-xs overflow-hidden shadow-sm hover:shadow-md transition-shadow z-10 ${colorClass} opacity-90 hover:opacity-100 ${isRecurring ? 'cursor-pointer' : 'cursor-move'}`}
-                                                style={{
-                                                    top: style.top,
-                                                    height: style.height,
-                                                }}
-                                                onClick={(e) => handleEventClick(event, e)}
-                                            >
-                                                <div className="font-bold truncate text-sm flex items-center gap-1">
-                                                    {isRecurring && <span>↻</span>}
-                                                    {event.title}
-                                                </div>
-                                                <div className="opacity-90">{format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}</div>
-                                            </div>
-                                        );
-                                    })
-                                }
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         </div>
       </div>
+
     </div>
   );
 }

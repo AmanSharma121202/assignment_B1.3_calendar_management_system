@@ -37,3 +37,42 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete calendar' }, { status: 500 });
   }
 }
+
+export async function PUT(
+    request: NextRequest, 
+    { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = (session.user as any).id;
+  const { id } = await params;
+
+  try {
+    const body = await request.json();
+    const { name } = body;
+
+    if (!name || typeof name !== 'string') {
+        return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    // Verify ownership
+    const calendar = await prisma.calendar.findUnique({
+        where: { id }
+    });
+
+    if (!calendar || calendar.userId !== userId) {
+        return NextResponse.json({ error: 'Not found or access denied' }, { status: 404 });
+    }
+
+    const updatedCalendar = await prisma.calendar.update({
+      where: { id },
+      data: { name }
+    });
+
+    return NextResponse.json(updatedCalendar);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update calendar' }, { status: 500 });
+  }
+}

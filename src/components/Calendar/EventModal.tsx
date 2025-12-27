@@ -42,7 +42,6 @@ export default function EventModal({
   const [endTime, setEndTime] = useState('');
   const [recurrence, setRecurrence] = useState('NONE'); // NONE, DAILY, WEEKLY
   const [selectedCalendarId, setSelectedCalendarId] = useState('');
-  const [selectedReminder, setSelectedReminder] = useState<number>(-1); // -1 = None
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -107,7 +106,6 @@ export default function EventModal({
           endTime: endDateTime.toISOString(),
           recurrenceRule, 
           calendarId: selectedCalendarId,
-          reminders: selectedReminder > 0 ? [selectedReminder] : [] 
         }),
       });
 
@@ -148,7 +146,7 @@ export default function EventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8 transform transition-all scale-100 relative">
         {/* Delete Confirmation Overlay */}
         {isDeleteConfirmOpen && (
@@ -250,20 +248,7 @@ export default function EventModal({
             </div>
           </div>
 
-          <div>
-             <label className="block text-sm font-semibold text-slate-700 mb-2">Reminder</label>
-             <select
-                className="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border hover:border-indigo-300 transition-colors text-slate-900"
-                value={selectedReminder}
-                onChange={(e) => setSelectedReminder(Number(e.target.value))}
-             >
-                <option value={-1}>None</option>
-                <option value={10}>10 minutes before</option>
-                <option value={30}>30 minutes before</option>
-                <option value={60}>1 hour before</option>
-                <option value={1440}>1 day before</option>
-             </select>
-          </div>
+
 
           <div>
              <label className="block text-sm font-semibold text-slate-700 mb-2">Recurrence</label>

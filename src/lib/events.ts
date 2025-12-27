@@ -72,10 +72,11 @@ export async function getEvents(userId: string, start: Date, end: Date) {
   return allEvents;
 }
 
-export async function checkConflict(userId: string, start: Date, end: Date, excludeId?: string): Promise<boolean> {
+export async function checkConflict(userId: string, start: Date, end: Date, calendarId: string, excludeId?: string): Promise<boolean> {
   const count = await prisma.event.count({
     where: {
-      calendar: { userId },
+      calendar: { userId }, // Ensure user owns the calendar (double check)
+      calendarId: calendarId, // SCOPED TO THIS CALENDAR
       AND: [
         { startTime: { lt: end } },
         { endTime: { gt: start } },
@@ -94,11 +95,7 @@ export async function createEvent(userId: string, data: CreateEventInput) {
     throw new Error('Start time must be before end time');
   }
 
-  const hasConflict = await checkConflict(userId, start, end);
-  if (hasConflict) {
-    throw new Error('Event overlaps with an existing event');
-  }
-
+  // Resolve Calendar ID FIRST
   let targetCalendarId = data.calendarId;
 
   if (!targetCalendarId) {
@@ -118,6 +115,12 @@ export async function createEvent(userId: string, data: CreateEventInput) {
       if (!calendar) {
           throw new Error('Invalid calendar');
       }
+  }
+
+  // Check conflict scoped to the resolved calendar
+  const hasConflict = await checkConflict(userId, start, end, targetCalendarId);
+  if (hasConflict) {
+    throw new Error('Event overlaps with an existing event');
   }
 
   return prisma.event.create({
