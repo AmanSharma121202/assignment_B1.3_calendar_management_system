@@ -1,7 +1,7 @@
 # Calendar Management System
 
 A full-featured calendar web application built with Next.js 15, TypeScript, Prisma, and Tailwind CSS.
-Supports user accounts, multiple calendars, recurring events, and browser notifications.
+Supports user accounts, multiple calendars and recurring events.
 
 ## Features
 
@@ -24,13 +24,9 @@ Supports user accounts, multiple calendars, recurring events, and browser notifi
 
 ### 📂 Multiple Calendars
 - **Custom Calendars**: Create separate calendars (e.g., "Work", "Personal").
-- **Visibility Toggles**: Show/hide events by toggling calendars in the sidebar.
+- **Visibility Toggles**: Toggling calendars in the sidebar.
 - **Delete Protection**: Custom confirmation popup when deleting a calendar to prevent accidental data loss.
 - **Color Coding**: Events are automatically color-coded for visual distinction.
-
-### 🔔 Reminders & Notifications
-- **Browser Notifications**: Get system alerts for upcoming events.
-- **Customizable Timing**: Set reminders for 10m, 30m, 1h, or 1 day before the event.
 
 ## Tech Stack
 - **Framework**: Next.js 15 (App Router)
@@ -74,19 +70,16 @@ Supports user accounts, multiple calendars, recurring events, and browser notifi
 - `DELETE /api/calendars/[id]`: Delete a calendar.
 
 ## Usage Tips
-- **Authentication**: You can use demo account to login with email: demo@gmail.com and password: demo@1234.
+- **Authentication**: Sign Up and login with a demo account.
 - **Drag & Drop**: You cannot drag recurring events (instances are locked to the rule). Edit the series instead.
-- **Reminders**: You must allow browser notifications when prompted for the feature to work.
 
 ## Known Limitations
 - **Strict Conflict Detection**: Overlapping events are currently blocked. Future versions could allow overlaps with visual stacking.
 - **Recurring Event Dragging**: You cannot drag individual instances of a recurring series. You must edit the series via the modal.
-- **Mobile View**: The complex weekly grid is optimized for desktop and may be difficult to use on small mobile screens.
-- **Email Notifications**: Notifications are currently browser-only (popups). Email integration requires an external SMTP service.
+- **Email Notifications**: Email integration requires an external SMTP service which i have not implemented.
 
 ## Future Improvements
 - **Event Sharing**: Allow users to share calendars with specific people (Read/Write permissions).
 - **Advanced Recurrence**: Support for complex rules like "Last Friday of the month" and handling exceptions (removing one instance from a series).
 - **Search Functionality**: A search bar to quickly find events by title or description.
 - **External Sync**: Import/Export with Google Calendar or Outlook (.ics support).
-- **Drag & Drop Logic**: Enhanced logic to split recurring series on drop (e.g., "Edit this event only" vs "Edit all future events").

@@ -12,7 +12,7 @@ I approached this problem by prioritizing **correctness** of the data model and 
 
 ## AI Usage
 I used AI to:
-- For selecting the best tech stack for the project.
+- Select the best tech stack for the project.
 - Write the CSS grid logic, which can be tedious.
 - Debug the build errors by identifying the configuration mismatch.
 
