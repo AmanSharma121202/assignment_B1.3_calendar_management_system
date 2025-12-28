@@ -55,6 +55,9 @@ Supports user accounts, multiple calendars and recurring events.
 
 4. **Access the App**
    Open [http://localhost:3000](http://localhost:3000)
+   
+5. **For Demo Video of the assignment**
+   Open [Click here](https://jumpshare.com/share/cQh2mSSQi0xIAwvMdTUQ)
 
 ## API Reference
 
